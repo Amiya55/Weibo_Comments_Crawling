@@ -198,3 +198,5 @@ output/
 .idea/
 
 config.json
+data.json
+tmp.json
