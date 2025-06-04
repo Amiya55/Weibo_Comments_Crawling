@@ -1,7 +1,7 @@
-## Weibo_Comments_Crawling
+## Weibo_Comments_Crawling  
 Python微博热搜评论抓取以及情感分析工具
 
-### 基本类
+### 基本类  
 ```Python
 # 热搜相关数据，包括热搜主题，热搜的url
 # 这个类主要是配合下面的DataCrawling类，不单独使用
@@ -33,7 +33,7 @@ class DataCrawling:
         # 微博热搜热榜(容量为51，包含一个榜首和其他50个热搜)
         self._hot_searches: list[HotSearchData] = []
 ```
-### 函数接口与使用方法(DataCrawling类)
+### 函数接口与使用方法(DataCrawling类)  
 ```Python
 def get_hot_searches_list(self) -> list[str]:
     pass
@@ -65,4 +65,9 @@ def get_comments_via_keyword(self, keyword: str, scale: int = 1) -> list[Comment
 # 通过关键词查找搜索web界面，获取评论，代码逻辑和索取热搜榜评论类似，只不过提供了
 # 参数来传递你指定的关键字，比如说我要搜索doro，搜索Python，C++，搜索为什么空腹不能吃饭，都是可以的
 ```
+
+### 注意  
+1、爬虫程序需要进行浏览器伪装, 本程序未提供User-Agent以及网页cookies，这类信息请自行查找并按照本目录下的config.json文件中的示例添加到文件中  
+2、获取cookies前请确保你已经登陆微博  
+3、爬虫程序都有一定的时效性，如果无法爬取信息，请尝试更新cookies。如果无法解决，请自行对网页抓包进行分析，如果确定本程序失效，请停止使用
 
