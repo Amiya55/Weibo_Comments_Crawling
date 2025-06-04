@@ -1,3 +1,22 @@
+"""
+author: 穗喵喵喵喵
+created at: 2025-06-02
+last update: 2025-06-04
+
+description: 本程序为对微博评论进行抓取的爬虫
+version: 1.0
+
+functions: 1、获取当前微博热搜榜前51名的信息(数字在50-52间波动)  get_hot_searches_list
+           2、获取指定热榜搜索帖子的评论  get_hot_search_comments
+           3、获取通过指定关键词搜索帖子的评论  get_comments_via_keyword
+
+notice: 1、爬虫程序需要进行浏览器伪装, 本程序未提供User-Agent以及网页cookies，这类信息请自行
+        查找并按照本目录下的config.json文件中的示例添加到文件中
+        2、获取cookies前请确保你已经登陆微博
+        3、爬虫程序都有一定的时效性，如果无法爬取信息，请尝试更新cookies。如果无法解决
+        请自行对网页抓包进行分析，如果确定本程序失效，请停止使用
+"""
+
 import requests
 import json
 import re
@@ -76,13 +95,17 @@ class DataCrawling:
 
         return [s.get_title() for s in self._hot_searches]  # 只返回标题，不返回url
 
-    def get_hot_search_comments(self, start: int, end: int) -> dict[str: list[CommentData]]:
+    def get_hot_search_comments(self, start: int, end: int, scale: int = 1) -> dict[str: list[CommentData]]:
         """
         获取在总榜排名start到end范围内的热搜的评论
         :param start: 起始排名，1 <= start <= len(self._hot_searches)
         :param end: 最后排名，1 <= end <= len(self._hot_searches)
+        :param scale: 搜索的web页计数，数字越大，查找的信息越多
         :return: 一个包含目标热搜所有评论的字典，key为热搜名，value为评论的列表
         """
+        if scale < 1:
+            print(f'scale参数只能是大于0的数字, 你当前的数字: {scale}')
+            return {}
         if ((start < 0 or start > len(self._hot_searches)) or
             (end < 0 or end > len(self._hot_searches)) or
             (start > end)):
@@ -94,52 +117,74 @@ class DataCrawling:
             # 获取对应的url板块下的所有帖子的id
             parsed = urlparse(self._hot_searches[index].get_url())  # URL解析
             query_params: dict = parse_qs(parsed.query)
-            query_params.update({'page_type': 'searchall'})
+            query_params.update({'page_type': 'searchall', 'page': 1})
+            query_params['type'] = 60  # 切换为'热门'板块
 
             base_url: str = 'https://m.weibo.cn/api/container/getIndex'
-            responses = requests.get(base_url, headers=self._headers, params=query_params, cookies=self._cookies)
-            if responses.status_code != 200:
-                print(f'failed to get from {responses.url}, status code: {responses.status_code}')
-                return []
+            while query_params['page'] < scale:
+                responses = requests.get(base_url, headers=self._headers, params=query_params, cookies=self._cookies)
+                if responses.status_code != 200:
+                    print(f'failed to get from {responses.url}, status code: {responses.status_code}')
+                    return []
 
-            data: dict = json.loads(responses.text)  # 加载Json字符串
+                data: dict = json.loads(responses.text)  # 加载Json字符串
+                if data['ok'] == 0:
+                    break
 
-            posts: list = data['data']['cards']  # 获取热搜帖子条目
-            post_ids: list = [posts[i]['mblog']['id'] for i in range(len(posts)) if
-                              posts[i]['card_type'] == 9]  # 获取帖子ID
+                posts: list = data['data']['cards']  # 获取热搜帖子条目
+                post_ids: list = [posts[i]['mblog']['id'] for i in range(len(posts)) if
+                                  posts[i]['card_type'] == 9]  # 获取帖子ID
 
-            comments: list[CommentData] = self._get_comments(post_ids)  # 获取话题评论
-            ret[self._hot_searches[index].get_title()] = comments
+                comments: list[CommentData] = self._get_comments(post_ids)  # 获取话题评论
+                if self._hot_searches[index].get_title() in ret:
+                    ret[self._hot_searches[index].get_title()].extend(comments)
+                else:
+                    ret[self._hot_searches[index].get_title()] = comments
+
+                query_params['page'] += 1
 
         return ret
 
-    def get_comments_via_keyword(self, keyword: str) -> list[CommentData]:
+    def get_comments_via_keyword(self, keyword: str, scale: int = 1) -> list[CommentData]:
+        """
+        通过关键词搜索查找评论
+        :param keyword: 关键词
+        :param scale: 搜索规模，这个值越大就搜多到的结果越多，当然，不能无限大，超过临界值，搜索的信息量不再增加
+        :return: 评论的数组
+        """
+        if scale < 1:
+            print(f'scale参数只能是大于0的数字, 你当前的数字: {scale}')
+            return []
+
         base_url: str = 'https://m.weibo.cn/api/container/getIndex'
+
         params_via_keyword: dict = {
-            'containerid': f'100103type=1&q={keyword}',
-            'page_type': 'searchall'
+            'containerid': f'100103type=60&q={keyword}',
+            'page_type': 'searchall',
+            'page': 1
         }
 
-        responses = requests.get(base_url, headers = self._headers, cookies = self._cookies, params = params_via_keyword)
-        if responses.status_code != 200:
-            print(f'cannot get hot searches list, status code: {responses.status_code}')
-            return []
+        post_ids: list[int] = []  # 查找到的帖子ID
+        while params_via_keyword['page'] <= scale:
+            responses = requests.get(base_url, headers = self._headers, cookies = self._cookies, params = params_via_keyword)
+            if responses.status_code != 200:
+                print(f'cannot get hot searches list, status code: {responses.status_code}')
+                return []
 
-        print(responses.url)
-        data: dict = json.loads(responses.text)
-        if data['ok'] == 0:
-            print(f'cannot find any content, maybe your keyword is wrong. your keyword is {keyword}')
-            return []
+            data: dict = json.loads(responses.text)  # 加载Json字符串
+            if data['ok'] == 0:  #   ok值为0, 说明到达了临界值, 跳出循环，直接开始查找评论
+                break
 
-        data: dict = json.loads(responses.text)  # 加载Json字符串
+            with open('data.json', 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=4)
+                f.close()
 
-        with open('data.json', 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=4)
-            f.close()
+            posts: list = data['data']['cards']  # 获取热搜帖子条目
+            tmp: list = [posts[i]['mblog']['id'] for i in range(len(posts)) if
+                              posts[i]['card_type'] == 9]  # 获取帖子ID
+            post_ids.extend(tmp)
 
-        posts: list = data['data']['cards']  # 获取热搜帖子条目
-        post_ids: list = [posts[i]['mblog']['id'] for i in range(len(posts)) if
-                          posts[i]['card_type'] == 9]  # 获取帖子ID
+            params_via_keyword['page'] += 1  # 增加web页计数
 
         return self._get_comments(post_ids)  # 获取话题评论
 
@@ -194,16 +239,16 @@ if __name__ == '__main__':
     for i, v in enumerate(obj.get_hot_searches_list(), 1):
         print(f'{i}: {v}')
 
-    # comment_dict: dict[str: list[CommentData]] =  obj.get_hot_search_comments(1, 1)
-    # for key in comment_dict.keys():
-    #     with open(f'output/{key}.txt', 'w', encoding='utf-8') as file:
-    #         for c in comment_dict[key]:
-    #             file.write(f'{c.get_text()}\n')
-    #             if c.get_sub_comments():
-    #                 for scms in c.get_sub_comments():
-    #                     file.write(f'\t{scms}\n')
-    #         file.close()
+    comment_dict: dict[str: list[CommentData]] =  obj.get_hot_search_comments(1, 1, 2)
+    for key in comment_dict.keys():
+        with open(f'output/{key}.txt', 'w', encoding='utf-8') as file:
+            for c in comment_dict[key]:
+                file.write(f'{c.get_text()}\n')
+                if c.get_sub_comments():
+                    for scms in c.get_sub_comments():
+                        file.write(f'\t{scms}\n')
+            file.close()
 
-    coms:list[CommentData] = obj.get_comments_via_keyword(keyword = 'python')
-    for i in coms:
-        print(i.get_text())
+    # coms:list[CommentData] = obj.get_comments_via_keyword('区块链', 2)
+    # for i in coms:
+    #     print(i.get_text())
