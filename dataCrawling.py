@@ -86,9 +86,9 @@ class DataCrawling:
             return []
 
         data: dict = json.loads(responses.text)
-        with open('data.json', 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=4)
-            f.close()
+        # with open('data.json', 'w', encoding='utf-8') as f:
+        #     json.dump(data, f, ensure_ascii=False, indent=4)
+        #     f.close()
 
         for search in data['data']['cards'][0]['card_group']:
             self._hot_searches.append(HotSearchData(search['desc'], search['scheme']))
@@ -239,16 +239,21 @@ if __name__ == '__main__':
     for i, v in enumerate(obj.get_hot_searches_list(), 1):
         print(f'{i}: {v}')
 
-    comment_dict: dict[str: list[CommentData]] =  obj.get_hot_search_comments(1, 1, 2)
-    for key in comment_dict.keys():
-        with open(f'output/{key}.txt', 'w', encoding='utf-8') as file:
-            for c in comment_dict[key]:
-                file.write(f'{c.get_text()}\n')
-                if c.get_sub_comments():
-                    for scms in c.get_sub_comments():
-                        file.write(f'\t{scms}\n')
-            file.close()
+    # comment_dict: dict[str: list[CommentData]] =  obj.get_hot_search_comments(1, 1, 2)
+    # for key in comment_dict.keys():
+    #     with open(f'output/{key}.txt', 'w', encoding='utf-8') as file:
+    #         for c in comment_dict[key]:
+    #             file.write(f'{c.get_text()}\n')
+    #             if c.get_sub_comments():
+    #                 for scms in c.get_sub_comments():
+    #                     file.write(f'\t{scms}\n')
+    #         file.close()
 
-    # coms:list[CommentData] = obj.get_comments_via_keyword('区块链', 2)
-    # for i in coms:
-    #     print(i.get_text())
+    coms:list[CommentData] = obj.get_comments_via_keyword('doro', 10)
+    with open('output/doro.txt', 'w', encoding='utf-8') as f:
+        for i in coms:
+            f.write(f'{i.get_text()}\n')
+            if i.get_sub_comments():
+                for sub in i.get_sub_comments():
+                    f.write(f'{sub}\n')
+        f.close()
