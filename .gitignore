@@ -197,6 +197,4 @@ cython_debug/
 output/
 .idea/
 
-config.json
-data.json
-tmp.json
+myConfig.json
