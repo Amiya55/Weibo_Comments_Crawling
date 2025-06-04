@@ -37,7 +37,7 @@ class DataCrawling:
 ```Python
 def get_hot_searches_list(self) -> list[str]:
     pass
-# 获取当前微博的热搜，获取量为热搜榜前51，包括一个指定榜和50个热搜榜
+# 获取当前微博的热搜，获取量为热搜榜前51，包括一个置顶榜和50个热搜榜
 # 这个数字可能在50-52之间波动，这与微博本身有关
 ```
 ```Python
