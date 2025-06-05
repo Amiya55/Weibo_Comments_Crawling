@@ -121,7 +121,7 @@ class DataCrawling:
             query_params['type'] = 60  # 切换为'热门'板块
 
             base_url: str = 'https://m.weibo.cn/api/container/getIndex'
-            while query_params['page'] < scale:
+            while query_params['page'] <= scale:
                 responses = requests.get(base_url, headers=self._headers, params=query_params, cookies=self._cookies)
                 if responses.status_code != 200:
                     print(f'failed to get from {responses.url}, status code: {responses.status_code}')
@@ -175,9 +175,9 @@ class DataCrawling:
             if data['ok'] == 0:  #   ok值为0, 说明到达了临界值, 跳出循环，直接开始查找评论
                 break
 
-            with open('data.json', 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=4)
-                f.close()
+            # with open('data.json', 'w', encoding='utf-8') as f:
+            #     json.dump(data, f, ensure_ascii=False, indent=4)
+            #     f.close()
 
             posts: list = data['data']['cards']  # 获取热搜帖子条目
             tmp: list = [posts[i]['mblog']['id'] for i in range(len(posts)) if
